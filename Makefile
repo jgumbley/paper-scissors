@@ -1,12 +1,12 @@
 include common.mk
 
-# Environment variables
-export KIMI_API= http://hal:27000/v1
+export OPENAI_BASE_URL := https://api.moonshot.ai/v1
+export OPENAI_API_KEY = $(strip $(shell cat api.key))
 export UV_CACHE_DIR := $(CURDIR)/.uv-cache
 
 .PHONY: paper
 
-paper: .venv/
+paper: .venv/ api.key
 	uv run python paper.py
 	$(call success)
 
