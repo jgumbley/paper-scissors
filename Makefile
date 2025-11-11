@@ -5,10 +5,14 @@ export OPENAI_API_KEY = $(strip $(shell cat api.key))
 export MODEL := kimi-k2-thinking-turbo
 export UV_CACHE_DIR := $(CURDIR)/.uv-cache
 
-.PHONY: paper
+.PHONY: paper evals
 
 paper: .venv/ api.key
 	uv run python paper.py
+	$(call success)
+
+evals: .venv/ api.key
+	PAPER_EVALS_LOCAL=1 uv run python evals.py
 	$(call success)
 
 api.key:

@@ -41,6 +41,32 @@ class MoveChoice(BaseModel):
     rationale: str = Field(max_length=120)
 
 
+def offline_move_choice(prompt: str) -> MoveChoice:
+    """
+    Generate a local move choice.
+
+    Keeps `make evals` fast by avoiding remote LLM calls while still exercising
+    the MoveChoice contract.
+    """
+    move = secrets.choice(VALID_MOVES)
+    counters = {
+        "rock": "crushes scissors",
+        "paper": "wraps rock",
+        "scissors": "cut paper",
+    }
+    rationale = f"Offline eval ({prompt[:20]!r}...): {move} {counters[move]}."
+    return MoveChoice(move=move, rationale=rationale)
+
+
+def load_configuration() -> tuple[str, str, str]:
+    """Load API configuration from environment for reuse in CLI and evals."""
+    load_dotenv()
+    base_url = first_env("OPENAI_BASE_URL", "KIMI_BASE_URL")
+    api_key = first_env("OPENAI_API_KEY", "KIMI_API_KEY")
+    model_name = first_env("MODEL", "KIMI_MODEL")
+    return base_url, api_key, model_name
+
+
 def first_env(*names: str) -> str:
     for name in names:
         value = os.getenv(name)
@@ -68,6 +94,25 @@ def build_agent(base_url: str, api_key: str, model_name: str) -> Agent:
     return agent
 
 
+def run_agent(user_message: str = USER_MESSAGE, *, agent: Agent | None = None) -> MoveChoice:
+    """
+    Run the paper-scissors agent for a single prompt.
+
+    When no agent is injected we create one from the current environment config,
+    which keeps evals and CLI behavior aligned.
+    """
+    offline_eval = os.getenv("PAPER_EVALS_LOCAL", "").lower() in {"1", "true", "yes"}
+    if offline_eval:
+        return offline_move_choice(user_message)
+
+    if agent is None:
+        base_url, api_key, model_name = load_configuration()
+        agent = build_agent(base_url, api_key, model_name)
+
+    result = agent.run_sync(user_message)
+    return result.output
+
+
 async def log_event_stream(_, events) -> None:
     async for event in events:
         if isinstance(event, PartStartEvent) and isinstance(event.part, ThinkingPart):
@@ -88,11 +133,8 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     logger.info("Loading environment configuration")
-    load_dotenv()
     try:
-        base_url = first_env("OPENAI_BASE_URL", "KIMI_BASE_URL")
-        api_key = first_env("OPENAI_API_KEY", "KIMI_API_KEY")
-        model_name = first_env("MODEL", "KIMI_MODEL")
+        base_url, api_key, model_name = load_configuration()
     except RuntimeError as exc:
         print(exc, file=sys.stderr)
         raise SystemExit(1)
@@ -104,7 +146,7 @@ def main() -> None:
     logger.info("Agent initialized, starting run")
     start = time.monotonic()
     try:
-        result = agent.run_sync(USER_MESSAGE)
+        move_choice = run_agent(USER_MESSAGE, agent=agent)
     except Exception as exc:  # pragma: no cover - passthrough for CLI use
         logger.exception("Agent run failed")
         print(f"agent run failed: {exc}", file=sys.stderr)
@@ -112,7 +154,7 @@ def main() -> None:
     duration = time.monotonic() - start
     logger.info("Agent run finished in %.2fs", duration)
 
-    output = result.output.model_dump()
+    output = move_choice.model_dump()
     print(json.dumps(output, separators=(",", ":")))
 
 
