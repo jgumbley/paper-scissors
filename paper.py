@@ -86,17 +86,45 @@ def run_agent(user_message: str = USER_MESSAGE, *, agent: Agent | None = None) -
 
 
 async def log_event_stream(_, events) -> None:
+    reasoning_chunks: list[str] = []
+    current_part: list[str] | None = None
+    logged = False
+
     async for event in events:
         if isinstance(event, PartStartEvent) and isinstance(event.part, ThinkingPart):
-            logger.info("thinking start: %s", event.part.content.strip())
+            current_part = []
         elif isinstance(event, PartDeltaEvent) and isinstance(event.delta, ThinkingPartDelta):
-            delta = (event.delta.content_delta or "").strip()
-            if delta:
-                logger.info("thinking + %s", delta)
+            if current_part is not None:
+                delta = event.delta.content_delta or ""
+                if delta:
+                    current_part.append(delta)
         elif isinstance(event, PartEndEvent) and isinstance(event.part, ThinkingPart):
-            logger.info("thinking done: %s", event.part.content.strip())
+            text = _extract_trace_text(current_part, event.part.content)
+            if text:
+                reasoning_chunks.append(text)
+            current_part = None
         elif isinstance(event, FinalResultEvent):
-            logger.info("model produced final result, waiting for stream completion")
+            if current_part:
+                text = _extract_trace_text(current_part, "")
+                if text:
+                    reasoning_chunks.append(text)
+                current_part = None
+            _maybe_log_reasoning(reasoning_chunks)
+            logged = True
+
+    if not logged:
+        _maybe_log_reasoning(reasoning_chunks)
+
+
+def _maybe_log_reasoning(chunks: list[str]) -> None:
+    trace = " ".join(chunks).strip()
+    if trace:
+        logger.info('reasoning trace: "%s"', trace)
+
+
+def _extract_trace_text(buffer: list[str] | None, fallback: str) -> str:
+    text = "".join(buffer) if buffer else (fallback or "")
+    return " ".join(text.split())
 
 
 def main() -> None:
