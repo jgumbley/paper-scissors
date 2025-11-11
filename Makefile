@@ -2,6 +2,7 @@ include common.mk
 
 export OPENAI_BASE_URL := https://api.moonshot.ai/v1
 export OPENAI_API_KEY = $(strip $(shell cat api.key))
+export MODEL := kimi-k2-thinking-turbo
 export UV_CACHE_DIR := $(CURDIR)/.uv-cache
 
 .PHONY: paper

@@ -13,13 +13,13 @@ define success
 endef
 
 .venv/: requirements.txt
-	uv venv
+	uv venv .venv/
 	uv pip install -r requirements.txt
 	$(call success)
 
 digest:
 	@echo "=== Project Digest ==="
-	@for file in $$(find . -type f -name "*.py" -o -name "*.md" -o -name "*.txt" -o -name "Makefile" | grep -v venv | grep -v __pycache__ | sort); do \
+	@for file in $$(find . -path "./.uv-cache" -prune -o -type f \( -name "*.py" -o -name "*.md" -o -name "*.txt" -o -name "Makefile" \) -print | grep -v venv | grep -v __pycache__ | sort); do \
 		echo ""; \
 		echo "--- $$file ---"; \
 		cat "$$file"; \
@@ -31,5 +31,5 @@ ingest:
 	$(call success)
 
 clean:
-	rm -Rf venv
+	rm -Rf .venv/
 	$(call success)

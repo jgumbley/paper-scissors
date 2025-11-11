@@ -1,0 +1,3 @@
+- Strictly make as entry point to invoke all targets, runtime and test
+- Operate only inside this pwd unless explicitly told otherwise.
+- Call make digest to understand the codebase
