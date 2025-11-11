@@ -1,18 +1,15 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import json
 import logging
 import os
-import secrets
 import sys
 import time
 from typing import Literal
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-from pydantic_ai import Agent
+from pydantic_ai import Agent, ToolOutput
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.messages import (
@@ -25,11 +22,9 @@ from pydantic_ai.messages import (
 )
 
 SYSTEM_PROMPT = (
-    "You pick a single rock–paper–scissors move.\n"
-    "Immediately call the emit_move tool exactly once and do nothing else.\n"
-    "Never produce your own narration or the move text; the tool response is final.\n"
-    "After the tool returns, stop; no reflections or extra calls.\n"
-    "Valid moves: rock, paper, scissors."
+    "Pick exactly one move: rock, paper, or scissors.\n"
+    "Call emit_move(move, rationale) once with that choice and a <=120 character justification.\n"
+    "Once emit_move returns, stop immediately—no extra text, thoughts, or tool calls."
 )
 USER_MESSAGE = "make a choice rock paper scissor"
 VALID_MOVES: tuple[str, str, str] = ("rock", "paper", "scissors")
@@ -39,23 +34,6 @@ logger = logging.getLogger(__name__)
 class MoveChoice(BaseModel):
     move: Literal["rock", "paper", "scissors"]
     rationale: str = Field(max_length=120)
-
-
-def offline_move_choice(prompt: str) -> MoveChoice:
-    """
-    Generate a local move choice.
-
-    Keeps `make evals` fast by avoiding remote LLM calls while still exercising
-    the MoveChoice contract.
-    """
-    move = secrets.choice(VALID_MOVES)
-    counters = {
-        "rock": "crushes scissors",
-        "paper": "wraps rock",
-        "scissors": "cut paper",
-    }
-    rationale = f"Offline eval ({prompt[:20]!r}...): {move} {counters[move]}."
-    return MoveChoice(move=move, rationale=rationale)
 
 
 def load_configuration() -> tuple[str, str, str]:
@@ -81,15 +59,13 @@ def build_agent(base_url: str, api_key: str, model_name: str) -> Agent:
     agent = Agent(
         model=model,
         system_prompt=SYSTEM_PROMPT,
-        output_type=MoveChoice,
+        output_type=ToolOutput(
+            MoveChoice,
+            name="emit_move",
+            description="Return your single rock-paper-scissors move and a concise rationale.",
+        ),
         event_stream_handler=log_event_stream,
     )
-
-    @agent.tool_plain(name="emit_move")
-    def emit_move() -> MoveChoice:
-        move = secrets.choice(VALID_MOVES)
-        rationale = f"Random choice: {move}."
-        return MoveChoice(move=move, rationale=rationale)
 
     return agent
 
@@ -101,10 +77,6 @@ def run_agent(user_message: str = USER_MESSAGE, *, agent: Agent | None = None) -
     When no agent is injected we create one from the current environment config,
     which keeps evals and CLI behavior aligned.
     """
-    offline_eval = os.getenv("PAPER_EVALS_LOCAL", "").lower() in {"1", "true", "yes"}
-    if offline_eval:
-        return offline_move_choice(user_message)
-
     if agent is None:
         base_url, api_key, model_name = load_configuration()
         agent = build_agent(base_url, api_key, model_name)

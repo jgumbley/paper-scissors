@@ -12,7 +12,7 @@ paper: .venv/ api.key
 	$(call success)
 
 evals: .venv/ api.key
-	PAPER_EVALS_LOCAL=1 uv run python evals.py
+	uv run python evals.py
 	$(call success)
 
 api.key:
