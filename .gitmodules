@@ -1,0 +1,3 @@
+[submodule "third_party/absurd"]
+	path = third_party/absurd
+	url = https://github.com/earendil-works/absurd.git
