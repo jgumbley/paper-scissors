@@ -6,7 +6,7 @@ export MODEL := kimi-k2-thinking
 export UV_CACHE_DIR := $(CURDIR)/.uv-cache
 export ABSURD_DATABASE_URL := postgresql://absurd:absurd@127.0.0.1:5432/absurd?sslmode=disable
 
-.PHONY: paper evals worker spawn
+.PHONY: paper evals worker spawn absurd cleanabsurd absurdlogs
 
 paper: .venv/ api.key
 	uv run python paper.py
@@ -24,8 +24,6 @@ spawn: .venv/ .venv/ .venv/ .venv/
 
 api.key:
 	$(error 'error missing api.key')
-
-.PHONY: absurd cleanabsurd absurdlogs
 
 absurd:
 	docker compose -f local_infra/docker-compose.yml build
