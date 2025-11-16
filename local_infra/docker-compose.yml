@@ -1,0 +1,20 @@
+services:
+  absurd:
+    build:
+      context: ..
+      dockerfile: local_infra/Dockerfile
+    environment:
+      POSTGRES_USER: absurd
+      POSTGRES_PASSWORD: absurd
+      POSTGRES_DB: absurd
+      PGDATABASE: postgresql://absurd:absurd@127.0.0.1:5432/absurd?sslmode=disable
+      DATABASE_URL: postgresql://absurd:absurd@127.0.0.1:5432/absurd?sslmode=disable
+      PORT: "8080"
+    ports:
+      - "5432:5432"   # Postgres
+      - "8080:8080"   # Habitat UI
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

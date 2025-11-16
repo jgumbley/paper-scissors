@@ -17,3 +17,19 @@ evals: .venv/ api.key
 
 api.key:
 	$(error 'error missing api.key')
+
+.PHONY: absurd cleanabsurd absurdlogs
+
+absurd:
+	docker compose -f local_infra/docker-compose.yml build
+	docker compose -f local_infra/docker-compose.yml up -d absurd
+	$(call success)
+
+cleanabsurd:
+	docker compose -f local_infra/docker-compose.yml down
+	$(call success)
+
+absurdlogs:
+	docker compose -f local_infra/docker-compose.yml logs -f absurd
+	$(call success)
+
