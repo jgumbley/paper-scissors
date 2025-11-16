@@ -4,8 +4,9 @@ export OPENAI_BASE_URL := https://api.moonshot.ai/v1
 export OPENAI_API_KEY = $(strip $(shell cat api.key))
 export MODEL := kimi-k2-thinking
 export UV_CACHE_DIR := $(CURDIR)/.uv-cache
+export ABSURD_DATABASE_URL := postgresql://absurd:absurd@127.0.0.1:5432/absurd?sslmode=disable
 
-.PHONY: paper evals
+.PHONY: paper evals worker spawn
 
 paper: .venv/ api.key
 	uv run python paper.py
@@ -14,6 +15,12 @@ paper: .venv/ api.key
 evals: .venv/ api.key
 	uv run python evals.py
 	$(call success)
+
+worker: .venv/
+	uv run absurd_worker.py
+
+spawn: .venv/ .venv/ .venv/ .venv/
+	uv run spawn_stub.py
 
 api.key:
 	$(error 'error missing api.key')
@@ -32,4 +39,3 @@ cleanabsurd:
 absurdlogs:
 	docker compose -f local_infra/docker-compose.yml logs -f absurd
 	$(call success)
-

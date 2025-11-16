@@ -2,3 +2,4 @@ pydantic-ai
 httpx
 python-dotenv
 pydantic-evals
+psycopg[binary]
