@@ -6,7 +6,7 @@ export MODEL := kimi-k2-thinking
 export UV_CACHE_DIR := $(CURDIR)/.uv-cache
 export ABSURD_DATABASE_URL := postgresql://absurd:absurd@127.0.0.1:5432/absurd?sslmode=disable
 
-.PHONY: paper evals worker spawn absurd cleanabsurd absurdlogs
+.PHONY: paper evals worker spawn absurd cleanabsurd absurdlogs play-llm
 
 paper: .venv/ api.key
 	uv run python paper.py
@@ -21,6 +21,10 @@ worker: .venv/
 
 spawn: .venv/ .venv/ .venv/ .venv/
 	uv run spawn_stub.py
+
+play-llm: .venv/ api.key
+	uv run python -c 'from paper import play_llm_vs_llm_once; play_llm_vs_llm_once()'
+	$(call success)
 
 api.key:
 	$(error 'error missing api.key')

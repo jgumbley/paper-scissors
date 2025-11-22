@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ if str(SDK_SRC) not in sys.path:
 
 from absurd_sdk import Absurd  # type: ignore
 from log_config import setup_logging
+from paper import USER_MESSAGE, run_agent
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,17 @@ def rps_stub_task(_params: Any, _ctx: Any) -> dict[str, str]:
     logger.info("Executing rps.stub task with params: %s", _params)
     logger.debug("Task result: %s", RESULT_PAYLOAD)
     return RESULT_PAYLOAD
+
+
+@app.register_task(name="rps.llm")
+def rps_llm_task(_params: Any, _ctx: Any) -> dict[str, str]:
+    logger.info("Executing rps.llm task with params: %s", _params)
+    move_choice = run_agent(USER_MESSAGE)
+    payload = move_choice.model_dump()
+    logger.debug("rps.llm payload: %s", payload)
+    action_trace = {"tool_call": {"name": "emit_move", "arguments": payload}}
+    logger.action("tool_call\n%s", json.dumps(action_trace, indent=2))
+    return payload
 
 
 def main() -> None:
